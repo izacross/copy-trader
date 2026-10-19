@@ -20,7 +20,7 @@ export class CoinbaseClient {
   private signer: Promise<CoinbaseSigner> | null;
   private perps: { at: number; list: PerpProduct[] } | null = null;
 
-  constructor(keyName?: string, privateKey?: string, private fetcher: typeof fetch = fetch) {
+  constructor(keyName?: string, privateKey?: string, private fetcher: typeof fetch = (input, init) => fetch(input, init)) {
     this.signer = keyName && privateKey ? loadSigner(keyName, privateKey) : null;
   }
 

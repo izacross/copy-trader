@@ -14,7 +14,7 @@ function jwtExpiry(token: string): number {
 export class InvoClient {
   private token = '';
 
-  constructor(private refreshToken: string, private fetcher: typeof fetch = fetch) {}
+  constructor(private refreshToken: string, private fetcher: typeof fetch = (input, init) => fetch(input, init)) {}
 
   private async refresh(): Promise<void> {
     const r = await this.fetcher(`${BASE}/v1_0/auth/refresh_token`, {
