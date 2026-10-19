@@ -35,7 +35,7 @@ isn't in your allowed list, Coinbase has no perpetual for it, the trader's win r
 minimum, the signal is older than 60 s, the price has moved more than 1.5% from the trader's entry, or
 you're at your max open copies. Closes always go through, even with the kill switch on.
 
-**Catch-up:** a close is never lost to downtime or a burst of posts. If every post on the first feed
+**Catch-up:** closes that happen during downtime or a burst of posts still get mirrored. If every post on the first feed
 page is new, the poller pages back (up to about 270 posts) until it reaches ones it has seen. And once
 a minute it asks Invo about each trader position we hold a copy of, and closes ours if Invo says the
 trader has closed. Missed opens are not copied late: they're skipped as stale.
