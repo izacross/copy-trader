@@ -1,22 +1,24 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "copy-trader",
+  "account_id": "4c77d7af1e30f9f1bf3f4faa048d2cee",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   // Only reachable through your own domain behind Cloudflare Access, never a public workers.dev URL.
   "workers_dev": false,
   "preview_urls": false,
+  "routes": [{ "pattern": "invo.izac.cc", "custom_domain": true }],
   "assets": { "directory": "public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
   "durable_objects": { "bindings": [{ "name": "TRADER", "class_name": "Trader" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Trader"] }],
-  "d1_databases": [{ "binding": "DB", "database_name": "copy-trader", "database_id": "REPLACE_WITH_ID_FROM_wrangler_d1_create", "migrations_dir": "migrations" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "copy-trader", "database_id": "a7ff8d44-cc62-47bc-986d-1a4e73785d02", "migrations_dir": "migrations" }],
   // Watchdog: makes sure the poller is running, once a minute.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
     // Safety lock. Real orders need this to be "true" AND the live switch on in the dashboard.
     "LIVE_TRADING": "false",
     "POLL_SECONDS": "5",
-    "OWNER_EMAIL": ""
+    "OWNER_EMAIL": "hi@izac.me"
   },
   "observability": { "enabled": true }
   // Secrets (wrangler secret put <NAME>): INVO_REFRESH_TOKEN, COINBASE_API_KEY_NAME, COINBASE_API_PRIVATE_KEY
