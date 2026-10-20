@@ -3,6 +3,7 @@ import { LiveBroker, PaperBroker, type Broker } from './broker';
 import { CoinbaseClient } from './coinbase/client';
 import { Engine } from './engine';
 import { InvoClient } from './invo';
+import { Notifier } from './notify';
 import { closedPositionIds, readNewPosts } from './catchup';
 import { parsePost } from './signals';
 import { D1Store } from './store';
@@ -23,11 +24,14 @@ export class Trader extends DurableObject<Env> {
   private lastPoll: { at: number; ok: boolean; error?: string; signals: number } | null = null;
   private lastReconcile = 0;
   private reconcileError: string | null = null;
+  private notifier: Notifier;
+  private feedAlerted = false; // so a failing feed alerts once, not every 5 seconds
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.cb = new CoinbaseClient(env.COINBASE_API_KEY_NAME, env.COINBASE_API_PRIVATE_KEY);
     this.store = new D1Store(env.DB);
+    this.notifier = new Notifier(env.SLACK_WEBHOOK_URL);
     if (env.INVO_REFRESH_TOKEN) this.invo = new InvoClient(env.INVO_REFRESH_TOKEN);
   }
 
@@ -62,6 +66,7 @@ export class Trader extends DurableObject<Env> {
       return;
     }
     const invo = this.invo;
+    const pausedBefore = (await this.store.getSettings()).paused_reason;
     try {
       const getPage = async (lastPostId: string | null, limit: number) =>
         ((await invo.getFeed('following', limit, lastPostId)).items ?? []) as any[];
@@ -79,14 +84,25 @@ export class Trader extends DurableObject<Env> {
       if (signals.length) {
         const engine = new Engine(this.store, await this.broker());
         // Oldest first, so an open is handled before its close.
-        for (const sig of signals.reverse()) await engine.handle(sig);
+        for (const sig of signals.reverse()) await this.notifier.decision(await engine.handle(sig));
       }
       // A failed position check shouldn't mark the feed as failing; it retries next minute.
       this.reconcileError = await this.reconcile(invo).then(() => null, (e) => String(e?.message ?? e).slice(0, 300));
       this.lastPoll = { at: Date.now(), ok: true, signals: signals.length };
+      if (this.feedAlerted) {
+        this.feedAlerted = false;
+        await this.notifier.send('Invo feed is working again.');
+      }
     } catch (e: any) {
       this.lastPoll = { at: Date.now(), ok: false, error: String(e?.message ?? e).slice(0, 300), signals: 0 };
+      if (!this.feedAlerted) {
+        this.feedAlerted = true;
+        await this.notifier.send(`Invo feed check is failing, so no trades are being copied: ${this.lastPoll.error}`);
+      }
     }
+    const pausedAfter = (await this.store.getSettings()).paused_reason;
+    if (pausedAfter && pausedAfter !== pausedBefore)
+      await this.notifier.send(`Paused new copies: ${pausedAfter}. Press Resume on the dashboard to continue.`);
   }
 
   /** Once a minute: close any copy whose trader position Invo now reports as closed. */
@@ -105,7 +121,7 @@ export class Trader extends DurableObject<Env> {
         postId: `catch-up:${p.key}`, action: 'close', ticker: p.ticker, side: p.side === 'LONG' ? 'long' : 'short',
         leverage: p.leverage, entryPrice: null, closingPrice: null, traderId: p.trader_id, traderName: p.trader_name,
         winRate: null, positionId: p.key, postedAt: null, source: 'catch-up',
-      });
+      }).then((d) => this.notifier.decision(d));
     }
   }
 
@@ -121,7 +137,13 @@ export class Trader extends DurableObject<Env> {
       lastPoll: this.lastPoll,
       reconcileError: this.reconcileError,
       pollSeconds: this.intervalMs() / 1000,
+      slack: this.notifier.enabled,
     };
+  }
+
+  /** Dashboard button: sends a test message so you can check the webhook. */
+  async slackTest(): Promise<boolean> {
+    return this.notifier.send('Copy trader is connected to Slack. You will get a message here for every copy, close, error and pause.');
   }
 
   /** Dashboard button: close every copy in the current mode at market. */
@@ -134,11 +156,14 @@ export class Trader extends DurableObject<Env> {
         ts: Date.now(), mode: broker.mode, post_id: null, trader_name: pos.trader_name, ticker: pos.ticker,
         signal_action: 'close_all', signal_side: null, signal_leverage: null, decision: 'skip' as const, reason: '',
       };
+      let rec;
       try {
-        await this.store.record(await engine.closePosition(pos, base, 'closed from the dashboard'));
+        rec = await engine.closePosition(pos, base, 'closed from the dashboard');
       } catch (e: any) {
-        await this.store.record({ ...base, decision: 'error', reason: String(e?.message ?? e).slice(0, 500) });
+        rec = { ...base, decision: 'error' as const, reason: String(e?.message ?? e).slice(0, 500) };
       }
+      await this.store.record(rec);
+      await this.notifier.decision(rec);
     }
     return positions.length;
   }

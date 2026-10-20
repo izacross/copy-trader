@@ -86,6 +86,8 @@ async function api(req: Request, env: Env, path: string): Promise<Response> {
       return json(await store.saveSettings({ kill_switch: !!body.on }));
     case '/api/resume':
       return json(await store.saveSettings({ paused_reason: null }));
+    case '/api/slack-test':
+      return json({ ok: await stub.slackTest() });
     case '/api/close-all':
       return json({ closed: await stub.closeAll() });
     case '/api/paper-reset': {

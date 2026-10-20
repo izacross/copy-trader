@@ -64,6 +64,16 @@ npx wrangler secret put INVO_REFRESH_TOKEN   # same token as invo-copy-trader (s
 The first feed read only records existing posts, so nothing old gets copied. From then on, new trades
 from people you follow show up in the Decisions table.
 
+## Slack alerts (optional)
+
+Get a Slack message for every copy, close and error, when the Invo feed fails or recovers, and when
+copying pauses. Skipped signals are not sent.
+
+1. Go to [api.slack.com/apps](https://api.slack.com/apps), then **Create New App > From scratch**, and pick your workspace.
+2. Open **Incoming Webhooks**, switch it on, click **Add New Webhook to Workspace**, and pick a channel.
+3. Copy the webhook URL, then run `npx wrangler secret put SLACK_WEBHOOK_URL` and paste it at the prompt.
+4. Press **Send test message** on the dashboard.
+
 ## Going live
 
 1. Let it run in dry run for a couple of weeks and read the Decisions table.

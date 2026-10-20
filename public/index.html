@@ -105,6 +105,12 @@
     <p class="muted" id="liveHelp"></p>
     <div class="row"><button id="live">Turn on live trading</button><button id="paperReset">Reset paper balance</button></div>
   </section>
+
+  <section class="card">
+    <h2>Slack alerts</h2>
+    <p class="muted" id="slackHelp"></p>
+    <div class="row"><button id="slackTest">Send test message</button><span id="slackMsg"></span></div>
+  </section>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -175,6 +181,10 @@ function render() {
     ? 'Live trading is locked. To unlock it, set LIVE_TRADING to "true" in wrangler.jsonc and redeploy. Until then every trade is simulated with real Coinbase prices.'
     : !status.coinbaseKeys ? 'Live is unlocked, but the Coinbase API key secrets are missing.'
     : live ? 'Live: copies place real Coinbase futures orders.' : 'Unlocked. Turning live on places real Coinbase futures orders.';
+  $('slackTest').disabled = !status.slack;
+  $('slackHelp').textContent = status.slack
+    ? 'On. Slack gets a message for every copy, close and error, when the feed fails or recovers, and when copying pauses.'
+    : 'Off. Add a Slack incoming webhook as the SLACK_WEBHOOK_URL secret to turn alerts on.';
 }
 
 async function refresh() {
@@ -192,6 +202,10 @@ $('closeAll').onclick = () => act('/api/close-all', {}, 'Close every open copy a
 $('live').onclick = () => state.settings.live_enabled
   ? act('/api/live', { on: false })
   : act('/api/live', { on: true }, 'Turn on LIVE trading? New copies will place real Coinbase futures orders with real money.');
+$('slackTest').onclick = async () => {
+  try { const r = await call('/api/slack-test', {}); $('slackMsg').textContent = r.ok ? 'Sent. Check Slack.' : 'Slack rejected it. Check the webhook URL.'; }
+  catch (e) { $('slackMsg').textContent = e.message; }
+};
 $('paperReset').onclick = () => act('/api/paper-reset', {}, 'Reset the paper balance?');
 $('save').onclick = async () => {
   const body = {};

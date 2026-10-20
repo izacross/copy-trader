@@ -9,6 +9,7 @@ export interface Env {
   INVO_REFRESH_TOKEN?: string;
   COINBASE_API_KEY_NAME?: string;
   COINBASE_API_PRIVATE_KEY?: string;
+  SLACK_WEBHOOK_URL?: string;
 }
 
 export interface Signal {
