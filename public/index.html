@@ -64,7 +64,7 @@
     <div class="stat"><div class="v" id="cash">–</div><div class="k" id="cashLabel">Paper balance</div></div>
     <div class="stat"><div class="v" id="pnl">–</div><div class="k">Realized today</div></div>
     <div class="stat"><div class="v" id="open">–</div><div class="k">Open copies</div></div>
-    <div class="stat"><div class="v" id="poll">–</div><div class="k">Last feed check</div></div>
+    <div class="stat"><div class="v" id="poll">–</div><div class="k">Last feed check</div><div class="k" id="feedInfo"></div></div>
   </section>
 
   <section class="card">
@@ -136,6 +136,9 @@ function render() {
   $('pnl').textContent = usd(state.pnlToday);
   $('pnl').className = 'v ' + (state.pnlToday > 0 ? 'pos' : state.pnlToday < 0 ? 'neg' : '');
   $('open').textContent = positions.length;
+  const feed = state.feed || { posts: 0, lastAt: null };
+  $('feedInfo').textContent = feed.posts + ' new post' + (feed.posts === 1 ? '' : 's') + ' in 24h'
+    + (feed.lastAt ? ', latest ' + ago(feed.lastAt) : '');
   $('poll').textContent = status.lastPoll ? (status.lastPoll.ok ? Math.round((Date.now() - status.lastPoll.at) / 1000) + 's ago' : 'failing') : 'starting';
 
   const banners = [];
@@ -162,7 +165,9 @@ function render() {
     <td><span class="tag ${d.decision}">${d.decision}</span></td><td class="reason">${esc(d.reason)}</td>
     <td>${d.contracts ?? ''}</td><td>${d.price ? usd(d.price) : ''}</td>
     <td class="${d.pnl_usd > 0 ? 'pos' : d.pnl_usd < 0 ? 'neg' : ''}">${d.pnl_usd != null ? usd(d.pnl_usd) : ''}</td></tr>`).join('')
-    : '<tr><td colspan="9" class="muted">No signals yet. New trades from traders you follow on Invo will show up here.</td></tr>';
+    : '<tr><td colspan="9" class="muted">No trade signals yet. ' + ((state.feed && state.feed.posts)
+      ? 'Your Invo feed had ' + state.feed.posts + ' new posts in the last 24 hours, but none were verified trades.'
+      : 'Nobody you follow on Invo has posted in the last 24 hours. Follow more active traders on Invo to get signals.') + '</td></tr>';
 
   const f = $('settings');
   if (!f.contains(document.activeElement)) {
@@ -185,6 +190,11 @@ function render() {
   $('slackHelp').textContent = status.slack
     ? 'On. Slack gets a message for every copy, close and error, when the feed fails or recovers, and when copying pauses.'
     : 'Off. Add a Slack incoming webhook as the SLACK_WEBHOOK_URL secret to turn alerts on.';
+}
+
+function ago(t) {
+  const s = Math.round((Date.now() - t) / 1000);
+  return s < 120 ? s + 's ago' : s < 7200 ? Math.round(s / 60) + 'm ago' : s < 172800 ? Math.round(s / 3600) + 'h ago' : Math.round(s / 86400) + 'd ago';
 }
 
 async function refresh() {

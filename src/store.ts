@@ -125,4 +125,13 @@ export class D1Store implements Store {
     const row = await this.db.prepare('SELECT COUNT(*) AS n FROM seen_posts').first<{ n: number }>();
     return row?.n ?? 0;
   }
+
+  /** How many posts from people you follow showed up since a time, and when the latest one did. */
+  async feedActivity(since: number): Promise<{ posts: number; lastAt: number | null }> {
+    const row = await this.db
+      .prepare('SELECT SUM(ts >= ?) AS n, MAX(ts) AS last FROM seen_posts')
+      .bind(since)
+      .first<{ n: number | null; last: number | null }>();
+    return { posts: row?.n ?? 0, lastAt: row?.last ?? null };
+  }
 }

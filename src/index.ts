@@ -61,6 +61,7 @@ async function api(req: Request, env: Env, path: string): Promise<Response> {
       paperCash: await store.paperCash(),
       pnlToday: await store.realizedPnlSince(dayStart, mode),
       decisions,
+      feed: await store.feedActivity(Date.now() - 86_400_000),
     });
   }
 
