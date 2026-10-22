@@ -79,3 +79,11 @@ describe('CoinbaseClient', () => {
     await expect(cb.marketOrder('X', 'BUY', 1, 'c')).rejects.toThrow('INSUFFICIENT_FUND');
   });
 });
+
+import { InvoClient } from '../src/invo';
+describe('InvoClient token check', () => {
+  it('says clearly when the secret is not an Invo token', async () => {
+    const c = new InvoClient('https://hooks.slack.com/services/x', (async () => new Response('{}')) as any);
+    await expect(c.getFeed()).rejects.toThrow("isn't an Invo token");
+  });
+});

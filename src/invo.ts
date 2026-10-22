@@ -17,6 +17,8 @@ export class InvoClient {
   constructor(private refreshToken: string, private fetcher: typeof fetch = (input, init) => fetch(input, init)) {}
 
   private async refresh(): Promise<void> {
+    if (!/^eyJ[\w-]*\.[\w-]+\.[\w-]*$/.test(this.refreshToken.trim()))
+      throw new Error(`INVO_REFRESH_TOKEN isn't an Invo token (it should start with "eyJ"). It was probably overwritten; save it again.`);
     const r = await this.fetcher(`${BASE}/v1_0/auth/refresh_token`, {
       headers: { Authorization: `Bearer ${this.refreshToken}`, ...APP_HEADERS },
     });
